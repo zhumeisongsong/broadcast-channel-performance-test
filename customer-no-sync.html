@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Message Consumer (No Tab Sync)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .container {
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background-color: #2196F3;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    button:hover {
+      background-color: #1976D2;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+
+    .success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .info {
+      background-color: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .stat-item {
+      background-color: #f8f9fa;
+      padding: 15px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #2196F3;
+    }
+
+    .stat-label {
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .message-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 10px;
+      background-color: #f9f9f9;
+    }
+
+    .message-item {
+      background-color: white;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+      border-left: 4px solid #2196F3;
+    }
+
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .message-type {
+      font-weight: bold;
+      color: #2196F3;
+    }
+
+    .message-time {
+      color: #666;
+      font-size: 12px;
+    }
+
+    .message-size {
+      color: #28a745;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Message Consumer (No Tab Sync)</h1>
+
+  <div class="container">
+    <h3>Control Panel</h3>
+    <button id="startBtn">Start Listening</button>
+    <button id="stopBtn" disabled>Stop Listening</button>
+    <button id="clearBtn">Clear Data</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="container">
+    <h3>Statistics</h3>
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-value" id="totalMessages">0</div>
+        <div class="stat-label">Total Messages</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="messagesPerSecond">0</div>
+        <div class="stat-label">Messages/Second</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="totalSize">0 KB</div>
+        <div class="stat-label">Total Data Size</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="lastUpdate">--</div>
+        <div class="stat-label">Last Update</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="avgLatency">--</div>
+        <div class="stat-label">Avg Latency (ms)</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="minLatency">--</div>
+        <div class="stat-label">Min Latency (ms)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <h3>Latest Messages (Recent 50)</h3>
+    <div id="messageList" class="message-list"></div>
+  </div>
+
+  <script>
+    const channel = new BroadcastChannel("data-channel");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const status = document.getElementById("status");
+
+    // Statistics data
+    let totalMessages = 0;
+    let messagesPerSecond = 0;
+    let totalSize = 0;
+    let lastUpdate = null;
+    let isListening = false;
+    let messageHistory = [];
+    let lastSecondCount = 0;
+    let lastSecondTime = Date.now();
+    let latencyHistory = [];
+    let totalLatency = 0;
+    let minLatency = Infinity;
+    let requestInterval = null;
+    let requestCounter = 0;
+    const intervalTimeout = 1000;
+
+    function showStatus(message, type = 'info') {
+      status.textContent = message;
+      status.className = `status ${type}`;
+    }
+
+    function updateStats() {
+      document.getElementById("totalMessages").textContent = totalMessages;
+      document.getElementById("messagesPerSecond").textContent = messagesPerSecond;
+      document.getElementById("totalSize").textContent = `${(totalSize).toFixed(2)} KB`;
+      document.getElementById("lastUpdate").textContent = lastUpdate ?
+        new Date(lastUpdate).toLocaleTimeString() : '--';
+
+      // Update latency statistics
+      if (latencyHistory.length > 0) {
+        const avgLatency = totalLatency / latencyHistory.length;
+        document.getElementById("avgLatency").textContent = `${avgLatency.toFixed(2)}`;
+        document.getElementById("minLatency").textContent = `${minLatency.toFixed(2)}`;
+      } else {
+        document.getElementById("avgLatency").textContent = '--';
+        document.getElementById("minLatency").textContent = '--';
+      }
+    }
+
+    function addMessage(message) {
+      totalMessages++;
+      totalSize += message.size;
+      lastUpdate = message.timestamp;
+
+      // Calculate latency (time it took to receive the message)
+      const receiveTime = Date.now();
+
+      // Ensure message has a valid timestamp and calculate latency
+      let latency = 0;
+      if (message.timestamp && typeof message.timestamp === 'number' && message.timestamp > 0) {
+        latency = receiveTime - message.timestamp;
+        // Ensure latency is not negative (shouldn't happen in normal cases)
+        if (latency < 0) {
+          latency = 0;
+        }
+      } else {
+        // If no valid timestamp, use current time as fallback
+        latency = 0;
+        message.timestamp = receiveTime;
+      }
+
+      // Update latency statistics
+      latencyHistory.push(latency);
+      totalLatency += latency;
+      if (latency < minLatency) {
+        minLatency = latency;
+      }
+
+      // Limit latency history to prevent memory issues
+      if (latencyHistory.length > 1000) {
+        const removedLatency = latencyHistory.shift();
+        totalLatency -= removedLatency;
+      }
+
+      // Add to history with guaranteed latency value
+      const messageWithLatency = {
+        ...message,
+        receivedAt: receiveTime,
+        latency: latency // This should always have a value now
+      };
+
+      messageHistory.unshift(messageWithLatency);
+
+      // Limit history records
+      if (messageHistory.length > 50) {
+        messageHistory = messageHistory.slice(0, 50);
+      }
+
+      // Update messages per second count
+      const now = Date.now();
+      if (now - lastSecondTime >= 1000) {
+        messagesPerSecond = lastSecondCount;
+        lastSecondCount = 0;
+        lastSecondTime = now;
+      }
+      lastSecondCount++;
+
+      updateStats();
+      updateMessageList();
+    }
+
+    function updateMessageList() {
+      const messageList = document.getElementById("messageList");
+      messageList.innerHTML = '';
+
+      messageHistory.forEach(msg => {
+        const messageItem = document.createElement("div");
+        messageItem.className = "message-item";
+
+        const sizeKB = (msg.size).toFixed(2);
+        const timestamp = new Date(msg.timestamp).toLocaleTimeString();
+
+        // Ensure latency is always displayed with a fallback
+        let latencyDisplay = '0.00 ms';
+        if (msg.latency !== undefined && msg.latency !== null && typeof msg.latency === 'number') {
+          latencyDisplay = `${msg.latency.toFixed(2)} ms`;
+        }
+
+        messageItem.innerHTML = `
+          <div class="message-header">
+            <span class="message-time">${timestamp}</span>
+            <span class="message-size">${sizeKB} KB</span>
+          </div>
+          <div>ID: ${msg.id} | Publisher: ${msg.publisherId} | Latency: ${latencyDisplay}</div>
+        `;
+
+        messageList.appendChild(messageItem);
+      });
+    }
+
+    function requestMessage() {
+      if (!isListening) return;
+
+      const requestId = ++requestCounter;
+      const request = {
+        type: "request_message",
+        requestId: requestId,
+        timestamp: Date.now()
+      };
+
+      channel.postMessage(request);
+    }
+
+    function startListening() {
+      if (isListening) return;
+
+      isListening = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      // Start requesting messages every 1 second
+      requestInterval = setInterval(() => {
+        requestMessage();
+      }, intervalTimeout);
+
+      // Listen for all messages from publisher (both continuous and requested)
+      channel.onmessage = (event) => {
+        const data = event.data;
+
+        // Handle direct broadcast messages
+        if (data.id && data.timestamp) {
+          // This is a direct message from publisher
+          addMessage(data);
+        }
+        // Handle response messages (for backward compatibility)
+        else if (data.type === "response_message" && data.message) {
+          addMessage(data.message);
+        }
+      };
+
+      showStatus("Started requesting messages every 1 second and listening for responses...", "success");
+    }
+
+    function stopListening() {
+      if (!isListening) return;
+
+      isListening = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+
+      // Stop requesting messages
+      if (requestInterval) {
+        clearInterval(requestInterval);
+        requestInterval = null;
+      }
+
+      // Stop listening
+      channel.onmessage = null;
+
+      showStatus("Stopped requesting and listening for messages", "info");
+    }
+
+    function clearData() {
+      if (confirm("Are you sure you want to clear all data?")) {
+        totalMessages = 0;
+        messagesPerSecond = 0;
+        totalSize = 0;
+        lastUpdate = null;
+        messageHistory = [];
+        lastSecondCount = 0;
+        lastSecondTime = Date.now();
+        latencyHistory = [];
+        totalLatency = 0;
+        minLatency = Infinity;
+        requestCounter = 0;
+
+        updateStats();
+        updateMessageList();
+        showStatus("Data cleared", "info");
+      }
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', startListening);
+    stopBtn.addEventListener('click', stopListening);
+    clearBtn.addEventListener('click', clearData);
+
+    // Initialize after page load
+    showStatus("Consumer ready, click Start Listening button to begin receiving messages", "info");
+    updateStats();
+  </script>
+</body>
+
+</html>

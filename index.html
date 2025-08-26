@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BroadcastChannel Multi-Tab Performance Test</title>
+</head>
+<body>
+  <h2>BroadcastChannel Multi-Tab Performance Test</h2>
+  <button id="start">Start Test</button>
+  <pre id="output"></pre>
+
+  <script>
+    // BroadcastChannel is a Web API that allows you to send messages to other tabs in the same origin.
+    const channel = new BroadcastChannel("multi-test");
+    const output = document.getElementById("output");
+    const tabId = Math.random().toString(36).slice(2, 8); // unique ID per tab
+
+    function log(msg) {
+      output.textContent += `[${tabId}] ${msg}\n`;
+    }
+
+    // Receive messages
+    channel.onmessage = (e) => {
+      const { type, sentAt, from, size } = e.data;
+      if (type === "broadcast") {
+        const latency = performance.now() - sentAt; // latency is the time it took to receive the message
+        log(`Received ${size/1024}KB from ${from}, latency: ${(latency/1000).toFixed(2)} s`);
+      }
+    };
+
+    // Create message of given size
+    function makeMessage(size) {
+      return "x".repeat(size);
+    }
+
+    document.getElementById("start").onclick = async () => {
+      log("=== Starting broadcast test ===");
+      const sizes = [1024, 10*1024, 100*1024, 1000*1024]; // 1KB, 10KB, 100KB, 1000KB
+
+      for (let size of sizes) {
+        const data = {
+          type: "broadcast",
+          sentAt: performance.now(),
+          size,
+          from: tabId,
+          msg: makeMessage(size)
+        };
+
+        channel.postMessage(data);
+        log(`Sent ${size/1024}KB message...`);
+
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
+      log("=== Test finished ===");
+    };
+  </script>
+</body>
+</html>

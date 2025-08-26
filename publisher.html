@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Message Publisher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+
+        .history-item {
+            background-color: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+        }
+
+        .history-item.continuous {
+            border-left-color: #2196F3;
+            background-color: #f0f8ff;
+        }
+
+        .history-item.continuous:hover {
+            background-color: #e3f2fd;
+        }
+
+        .history-item.requested {
+            border-left-color: #FF9800;
+            background-color: #fff8e1;
+        }
+
+        .history-item.requested:hover {
+            background-color: #fff3e0;
+        }
+
+        .history-timestamp {
+            color: #666;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .history-content {
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        .history-id {
+            color: #2196F3;
+            font-weight: bold;
+        }
+
+        .history-type {
+            color: #FF9800;
+            font-weight: bold;
+        }
+
+        .history-publisher {
+            color: #9C27B0;
+            font-weight: bold;
+        }
+
+        .history-size {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Message Publisher</h1>
+
+    <div class="container">
+        <h3>Control Panel</h3>
+        <div style="margin-bottom: 15px;">
+            <h4>Message Size Selection:</h4>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="messageSize" id="size10" value="10" checked> 10KB
+            </label>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="messageSize" id="size100" value="100"> 100KB
+            </label>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="messageSize" id="size500" value="500"> 500KB
+            </label>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="messageSize" id="size1000" value="1000"> 1000KB
+            </label>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <h4>Publish Speed Selection:</h4>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="publishSpeed" id="speed50" value="50" checked> 50ms (20 msg/s)
+            </label>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="publishSpeed" id="speed100" value="100"> 100ms (10 msg/s)
+            </label>
+            <label style="margin-right: 15px;">
+                <input type="radio" name="publishSpeed" id="speed500" value="500"> 500ms (2 msg/s)
+            </label>
+        </div>
+        <button id="startBtn">Start Continuous Publish</button>
+        <button id="stopBtn" disabled>Stop Continuous Publish</button>
+        <div id="status" class="status"></div>
+    </div>
+
+    <div class="container">
+        <h3>Publish History</h3>
+        <div id="history" class="history-list"></div>
+    </div>
+
+    <script>
+        const channel = new BroadcastChannel("data-channel");
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const status = document.getElementById("status");
+        const history = document.getElementById("history");
+
+        let autoPublishInterval = null;
+        let messageCounter = 0;
+        // intervalDelay will be read from radio button selection
+
+        function showStatus(message, type = 'success') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'status';
+            }, 2000);
+        }
+
+        function addToHistory(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item';
+
+            // Check if message is a string or an object to handle different cases
+            if (typeof message === 'string') {
+                historyItem.innerHTML = `<div class="history-timestamp">${timestamp}</div><div class="history-content">${message}</div>`;
+            } else if (message.id && message.publisherId) {
+                // Set different border colors based on message type
+                let borderColor = '#4CAF50'; // default green
+                if (message.type === 'continuous') {
+                    borderColor = '#2196F3'; // blue for continuous
+                    historyItem.classList.add('continuous');
+                } else if (message.type === 'requested') {
+                    borderColor = '#FF9800'; // orange for requested
+                    historyItem.classList.add('requested');
+                }
+
+                // Apply border color dynamically
+                historyItem.style.borderLeftColor = borderColor;
+
+                // If message object has ID and publisherId, display them with type
+                historyItem.innerHTML = `
+          <div class="history-timestamp">${timestamp}</div>
+          <div class="history-content">
+            ID: <span class="history-id">${message.id}</span> | 
+            Type: <span class="history-type">${message.type}</span> | 
+            Publisher: <span class="history-publisher">${message.publisherId}</span> | 
+            <span class="history-size">${message.size}KB</span>
+          </div>
+        `;
+            } else {
+                historyItem.innerHTML = `<div class="history-timestamp">${timestamp}</div><div class="history-content">${message}</div>`;
+            }
+
+            history.insertBefore(historyItem, history.firstChild);
+
+            // Limit history records
+            if (history.children.length > 20) {
+                history.removeChild(history.lastChild);
+            }
+        }
+
+        // Continuously generate messages
+        let continuousPublishInterval = null;
+
+        function startContinuousPublish() {
+            if (continuousPublishInterval) return;
+
+            // Get selected speed from radio buttons
+            const selectedSpeed = document.querySelector('input[name="publishSpeed"]:checked');
+            
+            if (!selectedSpeed) {
+                showStatus("Please select a publish speed", "error");
+                return;
+            }
+
+            const intervalDelay = parseInt(selectedSpeed.value);
+
+            continuousPublishInterval = setInterval(() => {
+                // Get selected size from radio buttons
+                const selectedSize = document.querySelector('input[name="messageSize"]:checked');
+                
+                if (!selectedSize) {
+                    showStatus("Please select a message size", "error");
+                    return;
+                }
+
+                const messageSize = parseInt(selectedSize.value);
+
+                const message = {
+                    id: ++messageCounter,
+                    type: "continuous",
+                    content: "x".repeat(messageSize * 1024), // Generate content based on selected size
+                    size: messageSize,
+                    timestamp: Date.now(),
+                    publisherId: Math.random().toString(36).slice(2, 8),
+                    isContinuous: true
+                };
+
+                // Broadcast the message
+                channel.postMessage(message);
+                addToHistory(message);
+            }, intervalDelay);
+
+            // Update button states
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            showStatus(`Continuous publishing started - ${messageSize}KB messages every ${intervalDelay}ms`, "success");
+        }
+
+        function stopContinuousPublish() {
+            if (continuousPublishInterval) {
+                clearInterval(continuousPublishInterval);
+                continuousPublishInterval = null;
+
+                // Update button states
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+
+                showStatus("Continuous publishing stopped", "info");
+            }
+        }
+
+        // Don't start publishing automatically - let user control it
+        // startContinuousPublish();
+
+        // Add event listeners
+        startBtn.addEventListener('click', startContinuousPublish);
+        stopBtn.addEventListener('click', stopContinuousPublish);
+
+        // Listen for message requests from consumers (optional, for compatibility)
+        channel.onmessage = (event) => {
+            const { type, requestId } = event.data;
+
+            if (type === "request_message") {
+                // Get selected size from radio buttons for requested messages
+                const selectedSize = document.querySelector('input[name="messageSize"]:checked');
+                
+                // Use selected size or default to 1000 if none selected
+                const messageSize = selectedSize ? parseInt(selectedSize.value) : 1000;
+
+                const message = {
+                    id: ++messageCounter,
+                    type: "requested",
+                    content: "x".repeat(messageSize * 1024), // Generate content based on selected size
+                    size: messageSize,
+                    timestamp: Date.now(),
+                    publisherId: Math.random().toString(36).slice(2, 8),
+                    requestId: requestId,
+                    isRequested: true
+                };
+
+                // Send the requested message back to the consumer
+                channel.postMessage({
+                    type: "response_message",
+                    message: message
+                });
+
+                addToHistory(message);
+            }
+        };
+
+        // Initialize after page load
+        showStatus("Publisher ready, click Start button to begin publishing", "info");
+    </script>
+</body>
+
+</html>
