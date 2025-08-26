@@ -65,4 +65,4 @@ In the test case `Continuous medium message test`,
 | 1000KB            | 500ms              | ✅                    | --                                                                                                              | --                    | Low frequency huge message test    |
 | 1000KB            | 500ms              | ❌                    | --                                                                                                              | --                    | Slow huge message test             |
 
-Messages/Second count is not stable: If the Publisher is
+
