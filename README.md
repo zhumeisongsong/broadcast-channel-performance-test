@@ -23,8 +23,6 @@ BroadcastChannel API is a Web standard that enables communication between differ
 
 When the publisher tab is in the background, browser throttling will significantly impact performance.
 
-In the test case `Continuous medium message test`,
-
 ### **Key Effects**:
 
 - **Timer Throttling**: `setInterval`/`setTimeout` minimum becomes ≈1000ms (Chrome/Edge/Firefox desktop), `requestAnimationFrame` stops
