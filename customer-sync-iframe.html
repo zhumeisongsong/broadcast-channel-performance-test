@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Message Consumer (With Tab Sync & Publisher Iframe)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .iframe-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .iframe-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .iframe-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            z-index: 1;
+        }
+
+        .iframe-container iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            border-radius: 10px;
+            background-color: white;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        .iframe-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .iframe-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: shine 3s infinite;
+        }
+
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .iframe-container::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            opacity: 0.7;
+        }
+
+        .iframe-container .pulse-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            z-index: 2;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        button {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #1976D2;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .stat-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+            font-size: 12px;
+        }
+
+        .message-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .message-item {
+            background-color: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .message-type {
+            font-weight: bold;
+            color: #2196F3;
+        }
+
+        .message-time {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .message-size {
+            color: #28a745;
+            font-size: 12px;
+        }
+
+        .tab-info {
+            background-color: #e3f2fd;
+            color: #1976d2;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .iframe-container iframe {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Message Consumer (With Tab Sync & Publisher Iframe)</h1>
+        <div class="tab-info">Tab ID: <span id="tabId"></span></div>
+    </div>
+
+    <div class="main-container">
+        <div class="left-panel">
+            <div class="container">
+                <h3>Control Panel</h3>
+                <button id="startBtn">Start Listening</button>
+                <button id="stopBtn" disabled>Stop Listening</button>
+                <button id="clearBtn">Clear Data</button>
+                <div id="status" class="status"></div>
+            </div>
+
+            <div class="container">
+                <h3>Statistics</h3>
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalMessages">0</div>
+                        <div class="stat-label">Total Messages</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="messagesPerSecond">0</div>
+                        <div class="stat-label">Messages/Second</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalSize">0 KB</div>
+                        <div class="stat-label">Total Data Size</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="lastUpdate">--</div>
+                        <div class="stat-label">Last Update</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="avgLatency">--</div>
+                        <div class="stat-label">Avg Latency (ms)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="minLatency">--</div>
+                        <div class="stat-label">Min Latency (ms)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="container">
+                <h3>Latest Messages (Recent 30)</h3>
+                <div id="messageList" class="message-list"></div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="container">
+                <h3>Publisher Control</h3>
+                <p>Use the publisher below to send messages, or control it from this consumer.</p>
+            </div>
+            
+            <div class="iframe-container">
+                <div class="iframe-header">
+                    📡 Message Publisher
+                </div>
+                <div class="pulse-indicator"></div>
+                <iframe src="publisher.html" title="Message Publisher"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const channel = new BroadcastChannel("data-channel");
+        const syncChannel = new BroadcastChannel("customer-sync");
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const status = document.getElementById("status");
+
+        // Statistics data
+        let totalMessages = 0;
+        let messagesPerSecond = 0;
+        let totalSize = 0;
+        let lastUpdate = null;
+        let isListening = false;
+        let messageHistory = [];
+        let lastSecondCount = 0;
+        let lastSecondTime = Date.now();
+        let latencyHistory = [];
+        let totalLatency = 0;
+        let minLatency = Infinity;
+        let requestInterval = null;
+        let syncInterval = null;
+        let requestCounter = 0;
+        let tabId = Math.random().toString(36).slice(2, 8);
+        const intervalTimeout = 1000;
+
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        function updateStats() {
+            document.getElementById("totalMessages").textContent = totalMessages;
+            document.getElementById("messagesPerSecond").textContent = messagesPerSecond;
+            document.getElementById("totalSize").textContent = `${(totalSize).toFixed(2)} KB`;
+            document.getElementById("lastUpdate").textContent = lastUpdate ?
+                new Date(lastUpdate).toLocaleTimeString() : '--';
+
+            if (latencyHistory.length > 0) {
+                const avgLatency = totalLatency / latencyHistory.length;
+                document.getElementById("avgLatency").textContent = `${avgLatency.toFixed(2)}`;
+                document.getElementById("minLatency").textContent = `${minLatency.toFixed(2)}`;
+            } else {
+                document.getElementById("avgLatency").textContent = '--';
+                document.getElementById("minLatency").textContent = '--';
+            }
+        }
+
+        function addMessage(message) {
+            totalMessages++;
+            totalSize += message.size;
+            lastUpdate = message.timestamp;
+
+            const receiveTime = Date.now();
+            let latency = 0;
+            
+            if (message.timestamp && typeof message.timestamp === 'number' && message.timestamp > 0) {
+                latency = receiveTime - message.timestamp;
+            } else {
+                latency = 0;
+                message.timestamp = receiveTime;
+            }
+
+            latencyHistory.push(latency);
+            totalLatency += latency;
+            if (latency < minLatency) {
+                minLatency = latency;
+            }
+
+            if (latencyHistory.length > 1000) {
+                const removedLatency = latencyHistory.shift();
+                totalLatency -= removedLatency;
+            }
+
+            const messageWithLatency = {
+                ...message,
+                receivedAt: receiveTime,
+                latency: latency
+            };
+
+            messageHistory.unshift(messageWithLatency);
+
+            if (messageHistory.length > 30) {
+                messageHistory = messageHistory.slice(0, 30);
+            }
+
+            const now = Date.now();
+            if (now - lastSecondTime >= 1000) {
+                messagesPerSecond = lastSecondCount;
+                lastSecondCount = 0;
+                lastSecondTime = now;
+            }
+            lastSecondCount++;
+
+            updateStats();
+            updateMessageList();
+            syncWithOtherTabs();
+        }
+
+        function updateMessageList() {
+            const messageList = document.getElementById("messageList");
+            messageList.innerHTML = '';
+
+            messageHistory.forEach(msg => {
+                const messageItem = document.createElement("div");
+                messageItem.className = "message-item";
+
+                const sizeKB = (msg.size).toFixed(2);
+                const timestamp = new Date(msg.timestamp).toLocaleTimeString();
+
+                let latencyDisplay = '0.00 ms';
+                if (msg.latency !== undefined && msg.latency !== null && typeof msg.latency === 'number') {
+                    latencyDisplay = `${msg.latency.toFixed(2)} ms`;
+                }
+
+                messageItem.innerHTML = `
+                    <div class="message-header">
+                        <span class="message-time">${timestamp}</span>
+                        <span class="message-size">${sizeKB} KB</span>
+                    </div>
+                    <div>ID: ${msg.id} | Publisher: ${msg.publisherId} | Latency: ${latencyDisplay}</div>
+                `;
+
+                messageList.appendChild(messageItem);
+            });
+        }
+
+        function syncWithOtherTabs() {
+            const syncData = {
+                type: "sync_data",
+                tabId: tabId,
+                timestamp: Date.now(),
+                data: {
+                    totalMessages,
+                    messagesPerSecond,
+                    totalSize,
+                    lastUpdate,
+                    messageHistory: messageHistory.slice(0, 20),
+                    latencyHistory: latencyHistory.slice(-100),
+                    totalLatency,
+                    minLatency
+                }
+            };
+
+            syncChannel.postMessage(syncData);
+        }
+
+        function periodicSync() {
+            if (isListening) {
+                syncWithOtherTabs();
+            }
+        }
+
+        function handleSyncMessage(event) {
+            const { type, tabId: senderTabId, data } = event.data;
+
+            if (type === "sync_data" && senderTabId !== tabId) {
+                totalMessages = Math.max(totalMessages, data.totalMessages);
+                totalSize = Math.max(totalSize, data.totalSize);
+
+                if (data.lastUpdate && (!lastUpdate || data.lastUpdate > lastUpdate)) {
+                    lastUpdate = data.lastUpdate;
+                }
+
+                data.messageHistory.forEach(syncedMsg => {
+                    const exists = messageHistory.some(localMsg =>
+                        localMsg.id === syncedMsg.id && localMsg.publisherId === syncedMsg.publisherId
+                    );
+                    if (!exists) {
+                        messageHistory.unshift(syncedMsg);
+                    }
+                });
+
+                if (messageHistory.length > 30) {
+                    messageHistory = messageHistory.slice(0, 30);
+                }
+
+                data.latencyHistory.forEach(latency => {
+                    if (!latencyHistory.includes(latency)) {
+                        latencyHistory.push(latency);
+                        totalLatency += latency;
+                        if (latency < minLatency) {
+                            minLatency = latency;
+                        }
+                    }
+                });
+
+                if (latencyHistory.length > 1000) {
+                    const removedLatency = latencyHistory.shift();
+                    totalLatency -= removedLatency;
+                }
+
+                updateStats();
+                updateMessageList();
+                showStatus(`Synced with tab ${senderTabId}`, "info");
+            }
+        }
+
+        function requestMessage() {
+            if (!isListening) return;
+
+            const requestId = ++requestCounter;
+            const request = {
+                type: "request_message",
+                requestId: requestId,
+                timestamp: Date.now()
+            };
+
+            channel.postMessage(request);
+        }
+
+        function startListening() {
+            if (isListening) return;
+
+            isListening = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            requestInterval = setInterval(() => {
+                requestMessage();
+            }, intervalTimeout);
+
+            syncInterval = setInterval(() => {
+                periodicSync();
+            }, 2000);
+
+            channel.onmessage = (event) => {
+                const data = event.data;
+
+                if (data.id && data.timestamp) {
+                    addMessage(data);
+                } else if (data.type === "response_message" && data.message) {
+                    addMessage(data.message);
+                }
+            };
+
+            syncChannel.onmessage = handleSyncMessage;
+
+            showStatus("Started requesting messages every 1 second and listening for responses...", "success");
+        }
+
+        function stopListening() {
+            if (!isListening) return;
+
+            isListening = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            if (requestInterval) {
+                clearInterval(requestInterval);
+                requestInterval = null;
+            }
+
+            if (syncInterval) {
+                clearInterval(syncInterval);
+                syncInterval = null;
+            }
+
+            channel.onmessage = null;
+
+            showStatus("Stopped requesting and listening for messages", "info");
+        }
+
+        function clearData() {
+            if (confirm("Are you sure you want to clear all data?")) {
+                totalMessages = 0;
+                messagesPerSecond = 0;
+                totalSize = 0;
+                lastUpdate = null;
+                messageHistory = [];
+                lastSecondCount = 0;
+                lastSecondTime = Date.now();
+                latencyHistory = [];
+                totalLatency = 0;
+                minLatency = Infinity;
+                requestCounter = 0;
+
+                if (syncInterval) {
+                    clearInterval(syncInterval);
+                    syncInterval = null;
+                }
+
+                updateStats();
+                updateMessageList();
+                showStatus("Data cleared", "info");
+            }
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', startListening);
+        stopBtn.addEventListener('click', stopListening);
+        clearBtn.addEventListener('click', clearData);
+
+        // Initialize
+        document.getElementById("tabId").textContent = tabId;
+        syncChannel.onmessage = handleSyncMessage;
+
+        showStatus("Consumer ready, click Start Listening button to begin receiving messages", "info");
+        updateStats();
+    </script>
+</body>
+
+</html>
