@@ -1,59 +1,188 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>BroadcastChannel Multi-Tab Performance Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BroadcastChannel Performance Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .test-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 20px;
+            color: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .test-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .test-card:hover::before {
+            left: 100%;
+        }
+
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .test-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 12px;
+            color: #4CAF50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-card p {
+            margin-bottom: 15px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .test-card .btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .test-card .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .footer {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .test-card {
+                padding: 18px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h2>BroadcastChannel Multi-Tab Performance Test</h2>
-  <button id="start">Start Test</button>
-  <pre id="output"></pre>
+    <div class="container">
+        <div class="header">
+            <h1>BroadcastChannel Performance Test</h1>
+            <p>Simple testing tools for BroadcastChannel API performance</p>
+        </div>
 
-  <script>
-    // BroadcastChannel is a Web API that allows you to send messages to other tabs in the same origin.
-    const channel = new BroadcastChannel("multi-test");
-    const output = document.getElementById("output");
-    const tabId = Math.random().toString(36).slice(2, 8); // unique ID per tab
+        <div class="test-grid">
+            <!-- Message Publisher -->
+            <div class="test-card">
+                <h3>📡 Message Publisher</h3>
+                <p>Configurable message publisher with size/speed control and publishing history.</p>
+                <a href="publisher.html" class="btn" target="_blank">Open Publisher</a>
+            </div>
 
-    function log(msg) {
-      output.textContent += `[${tabId}] ${msg}\n`;
-    }
+            <!-- Consumer with Sync -->
+            <div class="test-card">
+                <h3>🔄 Consumer with Sync</h3>
+                <p>Consumer with cross-tab synchronization, real-time metrics, and request-response mode.</p>
+                <a href="customer-sync.html" class="btn" target="_blank">Open Consumer</a>
+            </div>
 
-    // Receive messages
-    channel.onmessage = (e) => {
-      const { type, sentAt, from, size } = e.data;
-      if (type === "broadcast") {
-        const latency = performance.now() - sentAt; // latency is the time it took to receive the message
-        log(`Received ${size/1024}KB from ${from}, latency: ${(latency/1000).toFixed(2)} s`);
-      }
-    };
+            <!-- Consumer without Sync -->
+            <div class="test-card">
+                <h3>📊 Independent Consumer</h3>
+                <p>Standalone consumer for independent processing and local statistics.</p>
+                <a href="customer-no-sync.html" class="btn" target="_blank">Open Consumer</a>
+            </div>
+        </div>
 
-    // Create message of given size
-    function makeMessage(size) {
-      return "x".repeat(size);
-    }
+        <div class="footer">
+            <p>Built for BroadcastChannel API performance testing</p>
+        </div>
+    </div>
 
-    document.getElementById("start").onclick = async () => {
-      log("=== Starting broadcast test ===");
-      const sizes = [1024, 10*1024, 100*1024, 1000*1024]; // 1KB, 10KB, 100KB, 1000KB
-
-      for (let size of sizes) {
-        const data = {
-          type: "broadcast",
-          sentAt: performance.now(),
-          size,
-          from: tabId,
-          msg: makeMessage(size)
-        };
-
-        channel.postMessage(data);
-        log(`Sent ${size/1024}KB message...`);
-
-        await new Promise(r => setTimeout(r, 1000));
-      }
-
-      log("=== Test finished ===");
-    };
-  </script>
+    <script>
+        // Simple click tracking
+        document.querySelectorAll('.test-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    const testName = this.querySelector('h3').textContent.split(' ')[0];
+                    console.log(`Opening: ${testName}`);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
