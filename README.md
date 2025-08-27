@@ -8,13 +8,13 @@ BroadcastChannel API is a Web standard that enables communication between differ
 
 ## 🧪 Test Components
 
-| Component                                                         | Purpose                 |
-| ----------------------------------------------------------------- | ----------------------- |
-| **`index.html`**                                                  | Test Suite Navigation   |
-| **`basic-performance-test.html`**                                 | Basic Performance Test  |
-| **`publisher.html`**                                              | Message Publisher       |
-| **`customer-sync.html`**                                          | Consumer with Sync      |
-| **`customer-no-sync.html`**                                       | Independent Consumer    |
+| Component                         | Purpose                |
+| --------------------------------- | ---------------------- |
+| **`index.html`**                  | Test Suite Navigation  |
+| **`basic-performance-test.html`** | Basic Performance Test |
+| **`publisher.html`**              | Message Publisher      |
+| **`customer-sync.html`**          | Consumer with Sync     |
+| **`customer-no-sync.html`**       | Independent Consumer   |
 
 ## 🚀 Quick Start
 
@@ -51,19 +51,19 @@ BroadcastChannel API is a Web standard that enables communication between differ
 
 ## ⚠️ Background Tab Throttling
 
-> **🚨 Critical Finding**: When the publisher tab is in the background, browser throttling will **dramatically reduce performance by 10x or more**.
+**🚨 Critical Finding**:
+When the publisher tab is in the background, browser throttling will **dramatically reduce performance by 10x or more**.
 
-**📊 Performance Impact Example**: 
+**📊 Performance Impact Example**:
 In the High frequency medium message test (100KB message size, 50ms publish speed), the messages per second count drops from **20 to 2-3** when the publisher tab is in the background.
 
 ### **💡 Key Conclusions**:
 
-> **🎯 Main Takeaway**: Background tab throttling can reduce message throughput by **90% or more**
-> 
-> **⚡ Performance Drop**: From 20 msg/sec → 2-3 msg/sec (10x reduction)
-> 
-> **🔧 Root Cause**: Browser timer throttling, not BroadcastChannel API limitations
+**🎯 Main Takeaway**: Background tab throttling can reduce message throughput by **90% or more**
 
+**⚡ Performance Drop**: From 20 msg/sec → 2-3 msg/sec (10x reduction)
+
+**🔧 Root Cause**: Browser timer throttling, not BroadcastChannel API limitations
 
 | Message Size (KB) | Publish Speed (ms) | Consumer Request (1s) | customer-sync.html                                                                                              | customer-no-sync.html | Test Strategy                      |
 | ----------------- | ------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------- |
@@ -96,15 +96,17 @@ In the High frequency medium message test (100KB message size, 50ms publish spee
 
 This test suite was developed using AI assistance. We started with a real-world project scenario where we needed to test BroadcastChannel performance, and had some initial metrics in mind (like message delivery latency). Through open-ended questions, we developed a much more comprehensive performance testing framework.
 
-**🚀 Development Speed**: Thanks to Cursor AI assistance, this entire test suite was completed in under 30 minutes! While the code wasn't perfectly clean, Cursor quickly identified and fixed all the bugs according to requirements, demonstrating impressive development efficiency. 
+**🚀 Development Speed**: Thanks to Cursor AI assistance, this entire test suite was completed in under 30 minutes! While the code wasn't perfectly clean, Cursor quickly identified and fixed all the bugs according to requirements, demonstrating impressive development efficiency.
 
 Here are the key prompts that guided the development process:
 
 ### **🔍 Initial Questions**
+
 - "Help me build a customer and publisher to test BroadcastChannel API performance"
 - "I also want a customer with tab sync functionality, build one for me"
 
 ### **🧪 Testing Strategy Development**
+
 - "What test scenarios would be most valuable for understanding BroadcastChannel performance?"
 - Then some human work to test and adjust the testing strategy
 
